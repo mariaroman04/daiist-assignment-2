@@ -51,9 +51,14 @@
 
 ## Finetuning and baselines
 
-- Task (detection or classification) and model, and why: TODO
+- Task (detection or classification) and model, and why: Object detection with yolo11n (the "nano" model, 2.6 million parameters), fine-tuned from the COCO-pretrained checkpoint. I chose detection because one image holds several seams and the decision is per weld; classification would give one label per image. The nano size is more than fast enough for about 9 welds per minute (a few milliseconds per image on a T4 GPU) and trains in about half an hour on a free GPU.
+
+
 - Where I trained, hardware, settings (epochs, image size, seed): TODO
+
+
 - Results on the same test split: TODO
+
 
 | Model | Precision | Recall | AP50 | mAP50-95 |
 |---|---|---|---|---|
@@ -125,7 +130,11 @@ The **false-negative cost (€140)**. Half of it comes from the recall term, who
 
 ### Cost against threshold, and the operating point I chose
 
-- Dataset base rate vs real base rate, and how the results are reweighted: TODO
+- Dataset base rate vs real base rate, and how the results are reweighted: In the test split 64% of the labelled welds are defective (Bad Weld or Defect: 133 of 209), against 1% assumed on the line, so I do not use the dataset's share. I measure the model's rates on the labelled welds: the share of defective welds it flags and the share of good welds it wrongly flags. I then weight those rates by the assumed base rate: cost per weld = 1% x cost per defective weld + 99% x cost per good weld. A box the model draws where there is no labelled weld counts as an extra false alarm, because it would still pull a bracket.
+- Method: the thresholds are chosen on the validation split and the cost is reported on the test split, so the reported number is not tuned on the data it is measured on.
+
+
+
 - Cost vs confidence threshold plot, with the minimum marked: TODO
 - Chosen operating point and why: TODO
 - Sensitivity to FN cost (€20 to €1,500) and base rate (0.1% to 5%): TODO
@@ -147,6 +156,7 @@ The **false-negative cost (€140)**. Half of it comes from the recall term, who
 
 **With the model.**
 
+- Reviewer capacity cap (assumption): the operating point is the cheapest one that needs at most 2 reviewers, a small inspection team. The cheapest point without a cap is reported next to it.
 - Two thresholds (pass / review / fail): TODO
 - Share of cases sent to a person, cases per day, people needed: TODO
 - Is that realistic? TODO
@@ -163,14 +173,17 @@ The **false-negative cost (€140)**. Half of it comes from the recall term, who
 ## Limitations & next steps
 
 - Surface defects only; internal flaws need radiography or ultrasound. Next step: pair the camera with NDT sampling.
-- Public-dataset images versus real line-camera images. TODO: how I would collect real production images.
+- Public-dataset images versus real line-camera images. Next step: photograph a few thousand real welds with the line camera, label them with the inspectors, and keep the most recent weeks of production as the test set.
+- About 15% of the test images look like training images (image-hash check), so the test score is optimistic. Next step: re-split by source part before training and report the test score without the near-duplicates.
+- The test split has only 74 images (66 to 76 instances per class), so per-class numbers are noisy. Next step: label more images or use cross-validation grouped by part.
+- Every labelled flaw (Defect) counts as its own positive case, although most lie on a seam, so there are more positive cases than defective seams. Next step: re-label at seam level so one seam is one case.
 - Cost figures are assumptions, and the false-negative cost dominates. Next step: get real warranty and chargeback data from a supplier.
 - Human reviewer accuracy is not measured. Next step: run a small reviewer study.
 - TODO: limitations I find while training and evaluating.
 
 ## Generative AI use disclosure
 
-I used Claude (Anthropic) as an assistant. So far, I used it to help choose and narrow the business problem (weld inspection on chassis brackets), to search for and compile sources for the cost and operating figures, and to draft the text and arithmetic in the business-problem and cost sections. TODO: check this is accurate, then update it before submitting to say how I used AI on the training, costing and dashboard code, and what I checked or changed myself.
+I used Claude (Anthropic) as an assistant. So far, I used it to help choose and narrow the business problem so I could use an existing dataset in roboflow and help me to narrow some parts of this report MD.
 
 ---
 
