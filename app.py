@@ -272,7 +272,7 @@ with gr.Blocks(title="Weld inspection: pass, review or fail") as demo:
             gr.Dataframe(value=BASELINE_TABLE, interactive=False, label="Against the two baselines, test")
             gr.Dataframe(value=VAL_TABLE, interactive=False, label="Per class, validation")
             if CM_IMAGE.is_file():
-                gr.Image(value=str(CM_IMAGE), label="Confusion matrix (test, normalised, confidence 0.25)",
+                gr.Image(value=str(CM_IMAGE), label="Confusion matrix (test, normalised, confidence 0.001)",
                          interactive=False)
 
     cost_inputs = [t_low, t_high, split, base_rate, fn_cost]

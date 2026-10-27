@@ -5,8 +5,6 @@
 - **Email**: mroman.ieu2022@student.ie.edu
 - **Group**: BBADBA 5A
 
-> Before submitting, search this file for `TODO`. There should be no matches left.
-> Every figure has a source or is marked **(assumption)**. I should be able to explain each "because" without my code.
 
 ---
 
@@ -54,28 +52,42 @@
 - Task (detection or classification) and model, and why: Object detection with yolo11n (the "nano" model, 2.6 million parameters), fine-tuned from the COCO-pretrained checkpoint. I chose detection because one image holds several seams and the decision is per weld; classification would give one label per image. The nano size is more than fast enough for about 9 welds per minute (a few milliseconds per image on a T4 GPU) and trains in about half an hour on a free GPU.
 
 
-- Where I trained, hardware, settings (epochs, image size, seed): TODO
+- Where I trained, hardware, settings (epochs, image size, seed): Google Colab, Tesla T4 GPU, running train.py (the same code main.py train runs). yolo11n fine-tuned from the COCO-pretrained checkpoint; 60 epochs (the maximum I set; early stopping with patience 20 never triggered), image size 512, batch 16, seed 0, 26.9 minutes. Ultralytics 8.4.190, PyTorch 2.11.0.
 
 
-- Results on the same test split: TODO
+- Results on the same test split (74 images, 209 labelled welds). Precision and recall for the fine-tuned model are Ultralytics' values at the confidence that maximises F1; AP is threshold-free:
 
 
 | Model | Precision | Recall | AP50 | mAP50-95 |
 |---|---|---|---|---|
-| Fine-tuned yolo11 | TODO | TODO | TODO | TODO |
-| Pretrained COCO, zero-shot | TODO | TODO | TODO | TODO |
-| Trivial baseline | TODO | TODO | TODO | TODO |
+| Fine-tuned yolo11n (model alone, threshold 0.76) | 0.621 | 0.535 | 0.590 | 0.331 |
+| Pretrained COCO, zero-shot (any box flags the weld) | 0.000 | 0.000 | 0.000 | 0.000 |
+| Trivial: predict nothing (every weld passes) | 0.000 | 0.000 | 0.000 | 0.000 |
 
-- What changed, and whether the gap is as large as I expected: TODO
-- Best weights committed to `weights/`: TODO
+- What changed, and whether the gap is as large as I expected: Fine-tuning takes AP50 from 0.000 to 0.590. The zero for COCO is exact, not measured: COCO has 80 everyday classes and none is a weld. It still fired on 21 of the 74 test images, labelling boxes person, bed, cup, banana and spoon. Read generously (any box flags the weld), it costs €2,051 per 1,000 welds, 47% more than doing nothing (€1,400), because it pulls good welds for no reason. The gain in AP is large, but the gain in euros is modest: the fine-tuned model alone costs €1,226 per 1,000 welds (12% less than doing nothing), and €947 (32% less) once a human-review band is added.
+
+- Best weights committed to `weights/`: `weights/best.pt` (5.5 MB), the checkpoint with the best validation score from the 60-epoch run. The run used all 60 epochs, so the model may still have been improving; I did not train longer.
 
 ## Per-class evaluation and failure modes
 
 - Positive class: defective weld.
-- Per-class precision, recall and AP50: TODO
-- Confusion matrix: TODO
-- Which class carries the headline number, which one drags: TODO
-- What the model confuses with what, with example images: TODO
+- Per-class results on the test split:
+
+| Class | Test instances | Precision | Recall | AP50 | mAP50-95 |
+|---|---|---|---|---|---|
+| Bad Weld | 67 | 0.723 | 0.537 | 0.669 | 0.400 |
+| Defect | 66 | 0.499 | 0.422 | 0.454 | 0.201 |
+| Good Weld | 76 | 0.643 | 0.645 | 0.645 | 0.392 |
+| **All** | 209 | 0.621 | 0.535 | 0.590 | 0.331 |
+
+
+- Confusion matrix (test split, normalised, confidence 0.25, IoU 0.45; counts in results/test_confusion_matrix.png):
+
+![Confusion matrix, test split, normalised](results/test_confusion_matrix_normalized.png)
+
+- Which class carries the headline number, which one drags: Bad Weld carries it (AP50 0.669, precision 0.723). Defect drags it down: AP50 0.454, recall 0.422, mAP50-95 0.201, so the model finds fewer than half of the Defect boxes. Defect is also the smallest object (median 1.5% of the image area, against 5.7% for Bad Weld), which is a likely reason, but I did not test it. Good Weld recall is 0.645, so about a third of good welds are not recognised as good, which matters for the false-alarm rate.
+
+- What the model confuses with what, with example images: Reading the raw counts (test split; rows are what the model predicted, columns what the weld really is), the two seam classes are confused with each other far more than with Defect. 21 of 67 Bad Welds (31%) are called Good Weld, and 7 of 76 Good Welds (9%) are called Bad Weld. The costly mistake is a defect called good: 24 of the 133 defective objects (18%; 21 Bad Weld and 3 Defect) are matched to a Good Weld prediction, and 16 more (12%; 2 Bad Weld and 14 Defect) are missed entirely, so about 30% of defective objects are not labelled defective by the model's best-matching box. Defect is the class most often missed entirely: 14 of 66 (21%). The matrix is drawn at a very low confidence (0.001), which is why it also shows 1,622 predicted boxes that match no labelled weld (1,021 of them Defect); the cost analysis counts only boxes above its thresholds. Example images: upload any image from results/examples into the dashboard to see these errors.
 
 ---
 
@@ -126,7 +138,7 @@ Simple expected-value calculations per weld. The real analysis below uses the mo
 
 ### The assumption that would most change my answer
 
-The **false-negative cost (€140)**. Half of it comes from the recall term, whose probability (0.01%) I cannot observe. If the true false-negative cost were €1,500 the ideal flagging threshold would fall to about 0.14% and nearly every case would be flagged or sent to review. If it were below about €20, no inspection would pay for itself. I test €20 to €1,500 in the sweep below.
+The **expected loss from a shipped defect per weld, which is the defect rate times the cost of a missed defect** (1% x €140 = €1.40 per weld). Reading the sensitivity tables, the ranking of the options flips at about **€0.30 to €0.40 per weld**: below that, the model with a review band is cheaper than a person checking every weld; above it, checking everything wins. Both inputs are assumptions. The 1% rate comes from a weak source, and the €140 is dominated by a recall probability (0.01%) that I cannot observe. If defects were ten times rarer (0.1%) at the same €140, the model with review would be the cheapest option (€126 against €225 per 1,000). If the cost of a missed defect were €20 or less, no inspection would pay for itself at a low defect rate.
 
 ### Cost against threshold, and the operating point I chose
 
@@ -135,9 +147,36 @@ The **false-negative cost (€140)**. Half of it comes from the recall term, who
 
 
 
-- Cost vs confidence threshold plot, with the minimum marked: TODO
-- Chosen operating point and why: TODO
-- Sensitivity to FN cost (€20 to €1,500) and base rate (0.1% to 5%): TODO
+- Cost against threshold: the curve is below and in the dashboard, with the chosen threshold marked. On the validation split the cheapest single threshold is **0.76**. At that threshold the model alone flags only 19% of the defective welds in the test split (false-alarm rate 4%), which brings the cost from €1,400 to €1,226 per 1,000 welds.
+
+![Cost against threshold](results/cost_curve.png)
+
+- Chosen operating point and why: **pass below 0.52, human review from 0.52 to 0.84, fail from 0.84.** On the test split this costs **€947 per 1,000 welds** (€8,522 a day), against €1,400 for doing nothing (32% less) and €1,226 for the model alone (23% less), and it sends 31.7% of welds to a person. I do not recommend the model alone: it saves only 12% and lets most defects through. The review band is what makes the model useful, because a look at an uncertain weld costs about €0.14, while a shipped defect costs €140 in expectation. I chose the band on the validation split with a cap of 2 reviewers. Without the cap the cheapest band is 0.23 to 0.86: €881 per 1,000 (€66 less, about €600 a day), but it sends 78.7% of welds to a person and needs 6.6 reviewers, which I judged not worth it. **This design does not beat a person checking every weld; see the next section.**
+
+- Sensitivity (thresholds chosen on validation, cost on test, € per 1,000 welds). First, the base rate moves with the cost of a missed defect fixed at €140:
+
+| Defect rate on the line | Do nothing | Person checks all | Model alone | Model + review | Share reviewed | Reviewers |
+|---|---|---|---|---|---|---|
+| 0.1% | 140 | 225 | 135 | **126** | 4.0% | 0.3 |
+| 0.5% | 700 | **329** | 653 | 521 | 30.3% | 2.5 |
+| 1.0% (my assumption) | 1,400 | **459** | 1,226 | 947 | 31.7% | 2.6 |
+| 2.0% | 2,800 | **720** | 2,282 | 1,854 | 31.5% | 2.6 |
+| 5.0% | 7,000 | **1,501** | 4,446 | 3,960 | 35.7% | 3.0 |
+
+Second, the cost of a missed defect moves with the defect rate fixed at 1%:
+
+| Cost of a defect that ships | Do nothing | Person checks all | Model alone | Model + review | Share reviewed | Reviewers |
+|---|---|---|---|---|---|---|
+| €20 | 200 | 279 | 195 | **185** | 4.1% | 0.3 |
+| €50 | 500 | **324** | 477 | 403 | 30.3% | 2.5 |
+| €140 (my assumption) | 1,400 | **459** | 1,226 | 947 | 31.7% | 2.6 |
+| €300 | 3,000 | **699** | 2,373 | 2,181 | 34.0% | 2.8 |
+| €700 | 7,000 | **1,299** | 4,363 | 4,016 | 32.7% | 2.7 |
+| €1,500 | 15,000 | **2,499** | 7,801 | 7,028 | 35.2% | 2.9 |
+
+Bold marks the cheapest option. The model with review wins only when defects are rare or cheap (0.1% at €140, or €20 at 1%). In every other row, a person checking every weld is cheapest. The full 30-row table is in `results/sensitivity.csv`.
+
+
 
 ---
 
@@ -157,16 +196,20 @@ The **false-negative cost (€140)**. Half of it comes from the recall term, who
 **With the model.**
 
 - Reviewer capacity cap (assumption): the operating point is the cheapest one that needs at most 2 reviewers, a small inspection team. The cheapest point without a cap is reported next to it.
-- Two thresholds (pass / review / fail): TODO
-- Share of cases sent to a person, cases per day, people needed: TODO
-- Is that realistic? TODO
+- Two thresholds (pass / review / fail): pass below **0.52**, human review from 0.52 to 0.84, fail from **0.84**. Both were chosen on the validation split.
+- Share of cases sent to a person, cases per day, people needed: On the test split the band sends **31.7%** of welds to a person, which is **2,849 reviews a day**. At 20 s each that is 15.8 reviewer-hours, or **2.6 reviewers** at 6 productive hours each. On the validation split the same band needed at most 2 (that was the cap); on test it needs 2.6. With 176 and 74 images, the share sent to review is noisy.
+- Is that realistic? For the model-assisted design, yes. 2,849 reviews over 16 hours is about 3 a minute, which keeps one inspector fully busy at a screen. Allowing for breaks, that is about 1.3 inspectors per shift. It assumes 20 s per image, which holds only if the image is clear enough to decide on. A person checking everything needs about 4 inspectors per shift, a real department.
 
 | Option | Cost per 1,000 welds | Cost per day | People needed |
 |---|---|---|---|
-| Do nothing | TODO | TODO | 0 |
-| A person checks everything | TODO | TODO | TODO |
-| Model decides alone | TODO | TODO | 0 |
-| Model + human review | TODO | TODO | TODO |
+| Do nothing | €1,400 | €12,600 | 0 |
+| A person checks everything | **€459** | **€4,134** | 8.3 |
+| Model decides alone (threshold 0.76) | €1,226 | €11,037 | 0 |
+| Model + human review (0.52 to 0.84) | €947 | €8,522 | 2.6 |
+
+- **What I conclude.** At my assumptions, **a person checking every weld is cheapest**, and this model with a review band costs €488 more per 1,000 welds (€4,388 a day). The reason is the arithmetic of a skipped check. A look costs €0.14, while a shipped defect has an expected cost of €1.40 per weld. A weld should skip review only if its chance of being defective is below about **0.17%** (roughly 1 in 570), and this model cannot be that sure: at its best single threshold it flags only 19% of defects, so the welds it passes unreviewed still hold many of them. Even when the band reviews 78.7% of welds, the cost is still €881 per 1,000, about twice a full manual check.
+- **When the model-assisted design is still the right choice.** If the plant cannot staff 8 reviewers, the model with a review band is the best option I can offer: it cuts the cost by 32% against doing nothing (€4,078 a day) with 2.6 reviewers. It would also win if defects were much rarer than I assumed (roughly below 0.2 to 0.3% at a €140 cost per escape). All figures come from the test split, which is optimistic because about 15% of its images look like training images, so the real gap is probably wider.
+
 
 ---
 
@@ -179,7 +222,8 @@ The **false-negative cost (€140)**. Half of it comes from the recall term, who
 - Every labelled flaw (Defect) counts as its own positive case, although most lie on a seam, so there are more positive cases than defective seams. Next step: re-label at seam level so one seam is one case.
 - Cost figures are assumptions, and the false-negative cost dominates. Next step: get real warranty and chargeback data from a supplier.
 - Human reviewer accuracy is not measured. Next step: run a small reviewer study.
-- TODO: limitations I find while training and evaluating.
+- The model is weak on Defect (AP50 0.454, recall 0.422), the smallest objects, and it flags only 19% of defects at its best single threshold. Next step: train at a larger image size (for example 1024 px) or on tiles, and train longer, since all 60 epochs ran without early stopping.
+- The ranking of the options flips at about €0.30 to €0.40 of expected loss per weld (defect rate x cost of a missed defect), and both inputs are assumptions, so the conclusion "a person should check every weld" is only as good as those two numbers. Next step: replace them with measured warranty and defect data.
 
 ## Generative AI use disclosure
 

@@ -304,7 +304,7 @@ def write_report_snippets(path: Path, test_summary, val_summary, baselines, oper
     L.append(f"| **All** | {sum(r['instances'] for r in test_summary['per_class'])} | "
              f"{f3(o['precision'])} | {f3(o['recall'])} | {f3(o['ap50'])} | {f3(o['map50_95'])} |")
     L.append("\nConfusion matrix: results/test_confusion_matrix.png (counts) and "
-             "results/test_confusion_matrix_normalized.png. Drawn at confidence 0.25, IoU 0.45.\n")
+             "results/test_confusion_matrix_normalized.png. Drawn at confidence 0.001, IoU 0.45.\n")
 
     L.append("## Operating point\n")
     L.append("- Chosen on the validation split, reported on the test split.")
