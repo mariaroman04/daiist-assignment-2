@@ -30,34 +30,24 @@
 
 ## Dataset
 
-## Dataset
-
 - Roboflow workspace / project / version: workspace-4nvpa / welding_defects-vwoj6 / v1 (generated 11 Dec 2025)
 - Link: https://universe.roboflow.com/workspace-4nvpa/welding_defects-vwoj6
-- Not forked: public dataset used as is.
-- What one image represents: A photo of steel parts with one or more weld seams. Each seam is boxed and labelled Good Weld, Bad Weld or Defect.
-- Classes, and which are positive or negative: Good Weld (negative), Bad Weld (positive), Defect (positive). TODO: confirm this mapping after counting instances per class and looking at Defect vs Bad Weld examples.
-- Why this dataset serves the problem above and does not just resemble it: It labels each weld seam as good or non-conforming, which is the same decision an inspector makes. It includes a Good Weld class, so I can measure false alarms on good welds, not only detections of defects. Its limits: the parts look like plates and test pieces rather than chassis brackets, and lighting and background vary between images.
+- Not forked: public dataset used as is (CC BY 4.0).
+- What one image represents: A photo of steel parts with one or more weld seams. Each seam or flaw is boxed and labelled Bad Weld, Defect or Good Weld.
+- Classes, and which are positive or negative: Good Weld is negative. Bad Weld and Defect are positive. A case is one labelled object: a Good Weld is a negative case, a Bad Weld or a Defect is a positive case. 67% of Defect boxes lie inside a Good Weld or Bad Weld box, so a Defect is usually a flaw on a seam, not a separate seam. Counting each flaw as its own positive case is a simplification: it gives more positive cases than there are defective seams.
+- Why this dataset serves the problem above and does not just resemble it: It has a Good Weld class as well as the two defective classes, so I can measure false alarms on good welds and not only detections of defects. The decision it supports (is this weld acceptable?) is the one an inspector makes. Its limits: from the sample images the parts look like plates and test pieces rather than chassis brackets, and lighting and background vary between images.
 
 ## What the dataset's composition implies
 
-- Instances per class: TODO
-- Train / val / test sizes: 2,502 / 176 / 74 images (91% / 6% / 3%). Train holds 3 augmented outputs per original image (horizontal flip, rotation of +/-15 degrees), so about 834 unique training images. Val and test are not augmented. Images are auto-oriented and stretched to 512x512.
-- Typical object size relative to the image: TODO
-- Which per-class numbers are too thin to trust: The test split has only 74 images, so any per-class number measured on it is noisy. TODO: add classes with few instances once counted.
-- Does the test split resemble real production images (fixed line camera, consistent lighting)? Only partly. From the sample images, most are overhead shots of steel parts, similar to a fixed camera, but lighting and background vary and the parts are not chassis brackets.
-- Possible duplicates or leakage between splits: TODO
-- What I therefore cannot conclude from my results: TODO
+- Instances per class (train / val / test): Bad Weld 2,187 / 127 / 67; Defect 3,842 / 193 / 66; Good Weld 3,292 / 253 / 76.
+- Train / val / test sizes: 2,502 / 176 / 74 images (91% / 6% / 3%). The export adds augmented copies to train (horizontal flip, rotation of +/-15 degrees); counting distinct source file names gives 542 distinct source images in train. Val and test are not augmented. Images are auto-oriented and stretched to 512x512.
+- Typical object size relative to the image: the median box is 22% x 22% of the image for Bad Weld (5.7% of the area), 18% x 19% for Good Weld (3.1%) and 12% x 12% for Defect (1.5% of the area). The smallest tenth of Defect boxes is below 0.43% of the area, a square about 7% of the image width (roughly 34 px at 512 px).
+- Which per-class numbers are too thin to trust: Each class has only 66 to 76 instances in the test split (74 images), so per-class precision, recall and AP are noisy: one extra miss moves recall by about 1.5 points. There are only 76 good welds in test, so the false-alarm rate has a wide error margin.
+- Does the test split resemble real production images (fixed line camera, consistent lighting)? Only partly. The images are overhead shots of steel parts, similar to a fixed camera, but lighting and background vary and the parts are not chassis brackets. Every image has at least one label, so the model never sees an empty background. The dataset is also enriched with defects: 64% of labelled objects in the test split are Bad Weld or Defect, against an assumed 1% on a real line, so I re-weight to the assumed base rate before costing.
+- Possible duplicates or leakage between splits: Yes. By image hash (flips included), 11 of the 74 test images (15%) and 19 of the 176 validation images (11%) look like a training image, and 1 test image shares a source file name with train. The test score is therefore optimistic.
+- What I therefore cannot conclude from my results: That the model will perform this well on new parts or a different camera. Part of the test set is near-duplicate of training images, the test set is small, and the images are not from the intended production line. The results show that the pipeline and the cost logic work, not how many defects the model would catch on a real line.
 
-## What the dataset's composition implies
 
-- Instances per class: TODO
-- Train / val / test sizes: TODO
-- Typical object size relative to the image: TODO
-- Which per-class numbers are too thin to trust: TODO
-- Does the test split resemble real production images (fixed line camera, consistent lighting)? TODO
-- Possible duplicates or leakage between splits: TODO
-- What I therefore cannot conclude from my results: TODO
 
 ## Finetuning and baselines
 
