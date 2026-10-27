@@ -1,45 +1,103 @@
-# Weld inspection for vehicle chassis brackets: cost-aware defect detection
+# Assignment 2 Report
 
-> **Status:** Section 1 is written. Sections 2 to 8 are placeholders to fill in as each phase is done.
-> Every number below has a source or a stated assumption. Assumptions are marked **(assumption)** and are the ones I should be ready to defend and stress-test.
+- **Name**: María Román
+- **Student ID**: 19991
+- **Email**: mroman.ieu2022@student.ie.edu
+- **Group**: BBADBA 5A
+
+> Before submitting, search this file for `TODO`. There should be no matches left.
+> Every figure has a source or is marked **(assumption)**. I should be able to explain each "because" without my code.
 
 ---
 
-## 1. Business problem
+## Business problem, and the cost of being wrong
 
-### 1.1 Decision supported
-
-A tier-1 automotive supplier welds steel chassis brackets in three robotic cells, running two shifts a day. A camera photographs every weld seam as it leaves the cell. For each weld the system makes one of three calls:
+**Decision supported.** A tier-1 automotive supplier welds steel chassis brackets in three robotic cells, two shifts a day. A camera photographs every weld seam as it leaves the cell. For each weld the system makes one of three calls:
 
 - **Pass**: the bracket continues to packing.
 - **Fail**: the bracket goes to the rework station (grind out and re-weld).
 - **Human review**: a qualified inspector looks at the image on a screen and makes the call.
 
-**One case is one weld seam.** The **positive class is a defective (non-conforming) weld**. The mapping from dataset classes to positive and negative is fixed in Section 2.
+**One case is one weld seam.** The **positive class is a defective (non-conforming) weld**. The mapping from dataset classes to positive and negative is fixed in the Dataset section.
 
-### 1.2 Who acts on it today
+**Who acts on it today.** A qualified inspector or QA technician judges welds by eye. The relevant standard is ISO 17637:2016 (visual testing of fusion-welded joints). It says final acceptance by visual testing is done by qualified personnel, and that an inconclusive visual result should be backed up by another surface inspection method. That "inconclusive" case is what the human-review outcome represents here.
 
-Today a qualified inspector or QA technician judges welds by eye. The relevant standard is ISO 17637:2016 (visual testing of fusion-welded joints). It says final acceptance by visual testing is carried out by qualified personnel, and that when a visual result is inconclusive it should be backed up by another surface inspection method. That "inconclusive" case is what the human-review outcome represents in this project.
+**Which mistake is worse, and by how much.** A false negative (a defective weld ships) is roughly **70 times** more expensive than a false positive (a good weld is flagged): about €140 against €2 per weld. A false positive is caught inside the factory and costs a few minutes of technician time. A false negative is found later, at the customer or in the field, where it is multiplied by sorting, chargebacks and warranty, with a small chance of a recall campaign. Recall costs can land on the supplier: in one case the vehicle maker recovered about 90% of a battery recall bill from its supplier (Warranty Week, 2026), and OEMs commonly split warranty and recall costs 50/50 as a simplification (Plante Moran). The figures are built up in the cost section below.
 
 **Scope limit.** A camera sees surface defects only. Internal flaws (for example buried porosity) need radiography or ultrasound and are out of scope.
 
-### 1.3 Why a false negative is worse than a false positive
+---
 
-- A **false positive** (good weld flagged) is caught inside the factory. It costs a few minutes of technician time and occasionally an unnecessary regrind.
-- A **false negative** (defective weld ships) is discovered later, at the customer or in the field, where it is multiplied by sorting, chargebacks and warranty. It also carries a small chance of a recall campaign. A recall can be large: in one well-known case the vehicle maker recovered about 90% of a battery recall bill from its supplier (Warranty Week, 2026), and OEMs commonly split warranty and recall cost with suppliers 50/50 as a simplification (Plante Moran).
+## Dataset
 
-### 1.4 Cost per outcome (euros per weld)
+## Dataset
+
+- Roboflow workspace / project / version: workspace-4nvpa / welding_defects-vwoj6 / v1 (generated 11 Dec 2025)
+- Link: https://universe.roboflow.com/workspace-4nvpa/welding_defects-vwoj6
+- Not forked: public dataset used as is.
+- What one image represents: A photo of steel parts with one or more weld seams. Each seam is boxed and labelled Good Weld, Bad Weld or Defect.
+- Classes, and which are positive or negative: Good Weld (negative), Bad Weld (positive), Defect (positive). TODO: confirm this mapping after counting instances per class and looking at Defect vs Bad Weld examples.
+- Why this dataset serves the problem above and does not just resemble it: It labels each weld seam as good or non-conforming, which is the same decision an inspector makes. It includes a Good Weld class, so I can measure false alarms on good welds, not only detections of defects. Its limits: the parts look like plates and test pieces rather than chassis brackets, and lighting and background vary between images.
+
+## What the dataset's composition implies
+
+- Instances per class: TODO
+- Train / val / test sizes: 2,502 / 176 / 74 images (91% / 6% / 3%). Train holds 3 augmented outputs per original image (horizontal flip, rotation of +/-15 degrees), so about 834 unique training images. Val and test are not augmented. Images are auto-oriented and stretched to 512x512.
+- Typical object size relative to the image: TODO
+- Which per-class numbers are too thin to trust: The test split has only 74 images, so any per-class number measured on it is noisy. TODO: add classes with few instances once counted.
+- Does the test split resemble real production images (fixed line camera, consistent lighting)? Only partly. From the sample images, most are overhead shots of steel parts, similar to a fixed camera, but lighting and background vary and the parts are not chassis brackets.
+- Possible duplicates or leakage between splits: TODO
+- What I therefore cannot conclude from my results: TODO
+
+## What the dataset's composition implies
+
+- Instances per class: TODO
+- Train / val / test sizes: TODO
+- Typical object size relative to the image: TODO
+- Which per-class numbers are too thin to trust: TODO
+- Does the test split resemble real production images (fixed line camera, consistent lighting)? TODO
+- Possible duplicates or leakage between splits: TODO
+- What I therefore cannot conclude from my results: TODO
+
+## Finetuning and baselines
+
+- Task (detection or classification) and model, and why: TODO
+- Where I trained, hardware, settings (epochs, image size, seed): TODO
+- Results on the same test split: TODO
+
+| Model | Precision | Recall | AP50 | mAP50-95 |
+|---|---|---|---|---|
+| Fine-tuned yolo11 | TODO | TODO | TODO | TODO |
+| Pretrained COCO, zero-shot | TODO | TODO | TODO | TODO |
+| Trivial baseline | TODO | TODO | TODO | TODO |
+
+- What changed, and whether the gap is as large as I expected: TODO
+- Best weights committed to `weights/`: TODO
+
+## Per-class evaluation and failure modes
+
+- Positive class: defective weld.
+- Per-class precision, recall and AP50: TODO
+- Confusion matrix: TODO
+- Which class carries the headline number, which one drags: TODO
+- What the model confuses with what, with example images: TODO
+
+---
+
+## Cost matrix and operating point
+
+### Cost per outcome (euros per weld)
 
 | Outcome | What happens | Cost | Because |
 |---|---|---|---|
 | **True negative** (good weld, passed) | Nothing | **€0** | No action taken. |
-| **False positive** (good weld, flagged) | Bracket pulled, re-checked, returned to the line. 10% of the time it is needlessly reground and re-welded. | **€2** | 3 min pull and re-check = €1.25. 10% x 10 min rework = €0.42. Total €1.67, rounded up to €2 for handling. Labour at €25/h (see 1.6). |
+| **False positive** (good weld, flagged) | Bracket pulled, re-checked, returned to the line. 10% of the time it is needlessly reground and re-welded. | **€2** | 3 min pull and re-check = €1.25. 10% x 10 min rework = €0.42. Total €1.67, rounded up to €2 for handling. Labour at €25/h (see assumptions). |
 | **True positive** (defect caught) | Bracket pulled, ground out, re-welded | **€6** | 3 min handling (€1.25) + 10 min rework (€4.17) + about €0.60 consumables **(assumption)**. |
-| **False negative** (defect ships) | Expected cost of an escaped defect, see 1.5 | **€140** | Probability-weighted cost of three downstream outcomes. |
+| **False negative** (defect ships) | Expected cost of an escaped defect, built up below | **€140** | Probability-weighted cost of three downstream outcomes. |
 
 **Cost ratio FN : FP = 70 : 1.**
 
-### 1.5 How the false negative figure is built
+### How the false negative figure is built
 
 Most defective welds that ship never cost anything, because designs carry safety margin. A few cost a lot. So the false-negative cost is an expected value, not a fixed bill.
 
@@ -54,9 +112,7 @@ Where the campaign cost comes from: one analysis puts the all-in cost of a recal
 
 For context on tail risk, Siemens (2024) reports that an idle large automotive production line can cost up to about USD 2.3 million per hour. A line stoppage at the customer is not in my arithmetic, but it is why I do not treat the tail as negligible.
 
-**This is the least certain number in the report.** It is dominated by the campaign term (about half of the total), whose probability I cannot observe. Section 5 repeats the analysis with the false-negative cost between €20 and €1,500.
-
-### 1.6 Operating assumptions
+### Operating assumptions
 
 | Assumption | Value | Because |
 |---|---|---|
@@ -65,76 +121,66 @@ For context on tail risk, Siemens (2024) reports that an idle large automotive p
 | Welds per day | **9,000** (about 9.4 per minute over 16 h) | 1,500 x 6. |
 | Base rate of defective welds | **1%** (90 per day) | Vendor articles citing American Welding Society data say calibrated robotic cells run below 1% defective, against 5 to 8% for manual welding. I use 1% as the upper end of that range. **Weak source** (vendor blog). Sensitivity range: 0.1% to 5%. |
 | Labour cost | **€25/hour** | INE Quarterly Labour Cost Survey, Q1 2026: €24.88 per effective hour (all sectors). A skilled QA technician may cost more; this is conservative. |
-| Seconds per human review | **20 s** **(assumption)** | Looking at one stored weld image on a screen and giving a good/bad call. Cost: 20 s x €25/h = **€0.14 per review**. |
-| Reviewer productive time | 6 h per 8 h shift (75%) **(assumption)** | Breaks, handovers, interruptions. Used for headcount in Section 6. |
-| Human reviewer catch rate | **85%** | A classic experiment (Carroll, 1969, IIE Transactions) found inspectors missed about 15% of defects. Vendor blogs claim 65 to 85%. **Weak sources.** Sensitivity: 70% to 90%. |
-| Human reviewer false-alarm rate | **3%** **(assumption)** | The same paper reports a 3% type I error, measured at lot level, so treat it as indicative only. |
 
-### 1.7 What these numbers imply before any model is trained
+### What these numbers imply before any model is trained
 
-These are simple expected-value calculations per weld. Section 5 does the real analysis with the model's actual errors.
+Simple expected-value calculations per weld. The real analysis below uses the model's actual errors.
 
-1. **The ideal flagging rule.** For a perfectly calibrated model, flag a weld when the probability it is defective is above FP / (FN - TP + FP) = 2 / (140 - 6 + 2) = **about 1.5%**. This is close to the 1% base rate, so only welds that look worse than average should be flagged.
+1. **The ideal flagging rule.** For a perfectly calibrated model, flag a weld when the probability it is defective is above FP / (FN - TP + FP) = 2 / (140 - 6 + 2) = **about 1.5%**. That is close to the 1% base rate, so only welds that look worse than average should be flagged.
 2. **Flagging everything is worse than doing nothing.** Ignoring all defects costs 1% x €140 = **€1.40 per weld**. Flagging everything costs 1% x €6 + 99% x €2 = **€2.04 per weld**. Flag-everything only wins if the false-negative cost is above about €204. This is why the model has to be selective.
-3. **Checking everything by hand beats both.** Reviewing every weld costs about **€0.46 per weld** (€0.14 review + rework + false alarms + the 15% of defects the reviewer misses). It needs 9,000 x 20 s = 50 reviewer-hours a day, which is about **8 people** at 6 productive hours each. A model that safely passes the clearly good welds could cut that workload sharply.
-4. **A base-rate threshold.** Checking everything by hand costs more than ignoring defects altogether if the true defect rate falls below about **0.17%** (1,700 ppm), at a €140 false-negative cost.
+
+### The assumption that would most change my answer
+
+The **false-negative cost (€140)**. Half of it comes from the recall term, whose probability (0.01%) I cannot observe. If the true false-negative cost were €1,500 the ideal flagging threshold would fall to about 0.14% and nearly every case would be flagged or sent to review. If it were below about €20, no inspection would pay for itself. I test €20 to €1,500 in the sweep below.
+
+### Cost against threshold, and the operating point I chose
+
+- Dataset base rate vs real base rate, and how the results are reweighted: TODO
+- Cost vs confidence threshold plot, with the minimum marked: TODO
+- Chosen operating point and why: TODO
+- Sensitivity to FN cost (€20 to €1,500) and base rate (0.1% to 5%): TODO
 
 ---
 
-## 2. Dataset
+## What a person still has to check
 
-*To do (Phase 2).*
+**Human reviewer assumptions.**
 
-- Roboflow workspace / project / version: `TODO`
-- Not forked: public dataset used as is.
-- Instances per class, train/val/test sizes, object size relative to image: `TODO`
-- Mapping of dataset classes to positive/negative: `TODO` (Bad Weld and/or Defect = positive, Good Weld = negative)
-- What the stats imply (small classes, duplicates or leakage between splits, test images vs production camera images): `TODO`
+| Assumption | Value | Because |
+|---|---|---|
+| Seconds per review | **20 s** **(assumption)** | Looking at one stored weld image on a screen and giving a good/bad call. Cost: 20 s x €25/h = **€0.14 per review**. |
+| Reviewer productive time | 6 h per 8 h shift (75%) **(assumption)** | Breaks, handovers, interruptions. Used for headcount. |
+| Human catch rate | **85%** | A classic experiment (Carroll, 1969, IIE Transactions) found inspectors missed about 15% of defects. Vendor blogs claim 65 to 85%. **Weak sources.** Sensitivity: 70% to 90%. |
+| Human false-alarm rate | **3%** **(assumption)** | The same paper reports a 3% type I error, measured at lot level, so treat it as indicative only. |
 
-## 3. Models and baselines
+**Before any model: a person checks everything.** Reviewing every weld costs about **€0.46 per weld** (€0.14 review + rework + false alarms + the 15% of defects the reviewer misses). It needs 9,000 x 20 s = 50 reviewer-hours a day, about **8 people** at 6 productive hours each. Checking everything by hand costs more than ignoring defects altogether if the true defect rate falls below about **0.17%** (1,700 ppm), at a €140 false-negative cost.
 
-*To do (Phase 3).*
+**With the model.**
 
-- Where I trained, hardware, settings (model size, epochs, image size, seed): `TODO`
-- Fine-tuned model: `TODO`
-- Baseline 1, COCO-pretrained model zero-shot: `TODO`
-- Baseline 2, trivial (majority class or predict nothing): `TODO`
-- All compared on the same test split.
-- Best weights committed to `weights/`.
+- Two thresholds (pass / review / fail): TODO
+- Share of cases sent to a person, cases per day, people needed: TODO
+- Is that realistic? TODO
 
-## 4. Per-class results
+| Option | Cost per 1,000 welds | Cost per day | People needed |
+|---|---|---|---|
+| Do nothing | TODO | TODO | 0 |
+| A person checks everything | TODO | TODO | TODO |
+| Model decides alone | TODO | TODO | 0 |
+| Model + human review | TODO | TODO | TODO |
 
-*To do (Phase 3).*
+---
 
-- Positive class: defective weld.
-- Precision and recall per class, confusion matrix, AP50, mAP50-95: `TODO`
-- Which class carries the headline number, and where the model fails: `TODO`
+## Limitations & next steps
 
-## 5. Cost and threshold
+- Surface defects only; internal flaws need radiography or ultrasound. Next step: pair the camera with NDT sampling.
+- Public-dataset images versus real line-camera images. TODO: how I would collect real production images.
+- Cost figures are assumptions, and the false-negative cost dominates. Next step: get real warranty and chargeback data from a supplier.
+- Human reviewer accuracy is not measured. Next step: run a small reviewer study.
+- TODO: limitations I find while training and evaluating.
 
-*To do (Phase 4).*
+## Generative AI use disclosure
 
-- Costs and base rate from Section 1 (FP €2, TP €6, FN €140, TN €0, base rate 1%).
-- Dataset base rate vs real base rate, and how results are reweighted: `TODO`
-- Cost vs confidence threshold plot and chosen minimum: `TODO`
-- Sensitivity: FN cost €20 to €1,500, base rate 0.1% to 5%: `TODO`
-
-## 6. Human review
-
-*To do (Phase 4).*
-
-- Pass / fail / review thresholds: `TODO`
-- Cases per day to review, 20 s each, headcount at 6 productive hours: `TODO`
-- Realistic? `TODO`
-- Four options priced per day and per 1,000 cases: do nothing, human checks everything, model alone, model plus human review: `TODO`
-
-## 7. Dashboard
-
-*To do (Phase 5).* How to run: `uv run python main.py train` and `uv run python main.py app`.
-
-## 8. Limitations
-
-*To do.* Surface defects only. Public-dataset images versus real line-camera images. Cost figures are assumptions. Human reviewer accuracy is not measured.
+I used Claude (Anthropic) as an assistant. So far, I used it to help choose and narrow the business problem (weld inspection on chassis brackets), to search for and compile sources for the cost and operating figures, and to draft the text and arithmetic in the business-problem and cost sections. TODO: check this is accurate, then update it before submitting to say how I used AI on the training, costing and dashboard code, and what I checked or changed myself.
 
 ---
 
